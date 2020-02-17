@@ -570,7 +570,7 @@ class ScholarArticleParser120726(ScholarArticleParser):
         for tag in div:
             if not hasattr(tag, 'name'):
                 continue
-            if str(tag).lower().find('.pdf'):
+            if str(tag).lower().find('.pdf') >= 0:
                 if tag.find('div', {'class': 'gs_ttss'}):
                     self._parse_links(tag.find('div', {'class': 'gs_ttss'}))
 
@@ -642,14 +642,12 @@ class ScholarArticleParser200218(ScholarArticleParser):
         for tag in div:
             if not hasattr(tag, 'name'):
                 continue
-            if str(tag).lower().find('[pdf]'):
-                print('[pdf]')
+            if str(tag).lower().find('[pdf]') >= 0:
                 pdf_div = tag.find('div', {'class': 'gs_or_ggsm'})
                 if pdf_div:
                     self._parse_sidebar_pdf_url(pdf_div)
 
-            if str(tag).lower().find('.pdf'):
-                print(tag.find('div', {'class': 'gs_ttss'}))
+            if str(tag).lower().find('.pdf') >= 0:
                 if tag.find('div', {'class': 'gs_ttss'}):
                     self._parse_links(tag.find('div', {'class': 'gs_ttss'}))
 
