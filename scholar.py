@@ -514,6 +514,8 @@ class ScholarArticleParser(object):
         """Helper, returns full URL in case path isn't one."""
         if path.startswith('http://'):
             return path
+        if path.startswith('https://'):
+            return path
         if not path.startswith('/'):
             path = '/' + path
         return self.site + path
