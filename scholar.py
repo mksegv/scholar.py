@@ -293,6 +293,7 @@ class ScholarArticle(object):
             'num_versions':  [0,    'Versions',       4],
             'cluster_id':    [None, 'Cluster ID',     5],
             'url_pdf':       [None, 'PDF link',       6],
+            'sidebar_pdf_url': [None, 'Sidebar PDF link', 7],
             'url_citations': [None, 'Citations list', 7],
             'url_versions':  [None, 'Versions list',  8],
             'url_citation':  [None, 'Citation link',  9],
@@ -623,6 +624,84 @@ class ScholarArticleParser120726(ScholarArticleParser):
                         raw_text = raw_text.replace('\n', '')
                         self.article['excerpt'] = raw_text
 
+class ScholarArticleParser200218(ScholarArticleParser):
+    def _parse_sidebar_pdf_url(self, div):
+        for tag in div:
+            if not hasattr(tag, 'name'):
+                continue
+            if tag.name != 'a' or tag.get('href') is None:
+                continue
+            self.article['sidebar_pdf_url'] = self._path2url(tag.get('href'))
+    """
+    This class reflects update to the Scholar results page layout that
+    Google made 02/18/20.
+    """
+    def _parse_article(self, div):
+        self.article = ScholarArticle()
+
+        for tag in div:
+            if not hasattr(tag, 'name'):
+                continue
+            if str(tag).lower().find('[pdf]'):
+                print('[pdf]')
+                pdf_div = tag.find('div', {'class': 'gs_or_ggsm'})
+                if pdf_div:
+                    self._parse_sidebar_pdf_url(pdf_div)
+
+            if str(tag).lower().find('.pdf'):
+                print(tag.find('div', {'class': 'gs_ttss'}))
+                if tag.find('div', {'class': 'gs_ttss'}):
+                    self._parse_links(tag.find('div', {'class': 'gs_ttss'}))
+
+            if tag.name == 'div' and self._tag_has_class(tag, 'gs_ri'):
+                # There are (at least) two formats here. In the first
+                # one, we have a link, e.g.:
+                #
+                # <h3 class="gs_rt">
+                #   <a href="http://dl.acm.org/citation.cfm?id=972384" class="yC0">
+                #     <b>Honeycomb</b>: creating intrusion detection signatures using
+                #        honeypots
+                #   </a>
+                # </h3>
+                #
+                # In the other, there's no actual link -- it's what
+                # Scholar renders as "CITATION" in the HTML:
+                #
+                # <h3 class="gs_rt">
+                #   <span class="gs_ctu">
+                #     <span class="gs_ct1">[CITATION]</span>
+                #     <span class="gs_ct2">[C]</span>
+                #   </span>
+                #   <b>Honeycomb</b> automated ids signature creation using honeypots
+                # </h3>
+                #
+                # We now distinguish the two.
+                try:
+                    atag = tag.h3.a
+                    self.article['title'] = ''.join(atag.findAll(text=True))
+                    self.article['url'] = self._path2url(atag['href'])
+                    if self.article['url'].endswith('.pdf'):
+                        self.article['url_pdf'] = self.article['url']
+                except:
+                    # Remove a few spans that have unneeded content (e.g. [CITATION])
+                    for span in tag.h3.findAll(name='span'):
+                        span.clear()
+                    self.article['title'] = ''.join(tag.h3.findAll(text=True))
+
+                if tag.find('div', {'class': 'gs_a'}):
+                    year = self.year_re.findall(tag.find('div', {'class': 'gs_a'}).text)
+                    self.article['year'] = year[0] if len(year) > 0 else None
+
+                if tag.find('div', {'class': 'gs_fl'}):
+                    self._parse_links(tag.find('div', {'class': 'gs_fl'}))
+
+                if tag.find('div', {'class': 'gs_rs'}):
+                    # These are the content excerpts rendered into the results.
+                    raw_text = tag.find('div', {'class': 'gs_rs'}).findAll(text=True)
+                    if len(raw_text) > 0:
+                        raw_text = ''.join(raw_text)
+                        raw_text = raw_text.replace('\n', '')
+                        self.article['excerpt'] = raw_text
 
 class ScholarQuery(object):
     """
@@ -929,9 +1008,9 @@ class ScholarQuerier(object):
     # Older URLs:
     # ScholarConf.SCHOLAR_SITE + '/scholar?q=%s&hl=en&btnG=Search&as_sdt=2001&as_sdtp=on
 
-    class Parser(ScholarArticleParser120726):
+    class Parser(ScholarArticleParser200218):
         def __init__(self, querier):
-            ScholarArticleParser120726.__init__(self)
+            ScholarArticleParser200218.__init__(self)
             self.querier = querier
 
         def handle_num_results(self, num_results):
